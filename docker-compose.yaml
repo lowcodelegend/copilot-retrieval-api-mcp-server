@@ -1,0 +1,13 @@
+﻿services:
+  retrivalapimcpserver:
+    image: retrivalapimcpserver
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+        - .env #  add .env.local and docker-compose.override.yaml files for local dev
+
+
+
+
+

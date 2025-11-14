@@ -1,0 +1,6 @@
+Enable DotNetEnv
+Check inactivity duration of refresh token in Entra ID
+Enable such that it can be in Docker Desktop's MCP Servers section
+Publish on LinkedIn
+Publish on some redit or discord channels
+Add to Awesome MCP list - Research other lists for it

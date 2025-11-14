@@ -1,6 +1,9 @@
-namespace RetrivalApiMcpServer;
+namespace RetrievalApiMcpServer;
 
-public class GraphSettings
-{
-    
-}
+public sealed record GraphSettings(
+    string TenantId,
+    string ClientId,
+    string ClientSecret,
+    string? LoginHint,
+    string Scopes
+);

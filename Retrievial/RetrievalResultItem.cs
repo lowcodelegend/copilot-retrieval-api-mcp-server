@@ -1,6 +1,7 @@
-namespace RetrivalApiMcpServer.Retrieval;
+namespace RetrievalApiMcpServer.Retrieval;
 
-public class RetrievalResultItem
+public sealed class RetrievalResultItem
 {
-    
+    public string WebUrl { get; set; } = default!;
+    public List<RetrievalExtract> Extracts { get; set; } = new();
 }

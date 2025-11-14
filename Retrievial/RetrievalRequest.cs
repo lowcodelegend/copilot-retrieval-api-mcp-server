@@ -1,4 +1,4 @@
-namespace RetrivalApiMcpServer.Retrieval;
+namespace RetrievalApiMcpServer.Retrieval;
 
 public sealed class RetrievalRequest
 {

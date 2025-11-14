@@ -1,6 +1,7 @@
-namespace RetrivalApiMcpServer.Retrieval;
+namespace RetrievalApiMcpServer.Retrieval;
 
-public class RetrievalExtract
+public sealed class RetrievalExtract
 {
-    
+    public string Text { get; set; } = default!;
+    public double RelevanceScore { get; set; }
 }

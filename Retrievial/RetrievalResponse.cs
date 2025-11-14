@@ -1,6 +1,6 @@
-namespace RetrivalApiMcpServer.Retrieval;
+namespace RetrievalApiMcpServer.Retrieval;
 
-public class RetrievalResponse
+public sealed class RetrievalResponse
 {
-    
+    public List<RetrievalResultItem> RetrievalHits { get; set; } = new();
 }

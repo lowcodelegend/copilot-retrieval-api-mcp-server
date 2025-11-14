@@ -1,6 +1,13 @@
-@RetrivalApiMcpServer_HostAddress = http://localhost:5192
+POST http://localhost:5192/debug/retrieval
+Content-Type: application/json
 
-GET {{RetrivalApiMcpServer_HostAddress}}/weatherforecast/
-Accept: application/json
+{
+  "queryString": "vpn access",
+  "maximumNumberOfResults": 3
+}
 
 ###
+GET http://localhost:5192/debug/token-status
+
+### 
+GET http://localhost:5192/health

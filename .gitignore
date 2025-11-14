@@ -3,3 +3,6 @@ obj/
 /packages/
 riderModule.iml
 /_ReSharper.Caches/
+.env.local
+docker-compose.override.yaml
+Todos.txt
