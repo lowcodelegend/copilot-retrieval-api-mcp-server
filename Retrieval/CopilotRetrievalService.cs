@@ -7,6 +7,7 @@ namespace RetrievalApiMcpServer.Retrieval;
 
 public sealed class CopilotRetrievalService
 {
+    private readonly ILogger<CopilotRetrievalService> _logger;
     private readonly HttpClient _httpClient;
     private readonly GraphAuthService _auth;
     private readonly bool _mockEnabled;
@@ -16,8 +17,9 @@ public sealed class CopilotRetrievalService
         PropertyNameCaseInsensitive = true
     };
 
-    public CopilotRetrievalService(HttpClient httpClient, GraphAuthService auth)
+    public CopilotRetrievalService(ILogger<CopilotRetrievalService> logger, HttpClient httpClient, GraphAuthService auth)
     {
+        _logger = logger;
         _httpClient = httpClient;
         _auth = auth;
         _mockEnabled = Environment.GetEnvironmentVariable("MOCK_COPILOT_RETRIEVAL") == "1";
@@ -27,6 +29,15 @@ public sealed class CopilotRetrievalService
         RetrievalRequest request,
         CancellationToken ct = default)
     {
+        _logger.LogInformation(
+            "CopilotRetrieval SearchAsync called. Query='{Query}', DataSource='{DS}', MaxResults={Max}",
+            request.QueryString,
+            request.DataSource,
+            request.MaximumNumberOfResults);
+        
+        if (request.MaximumNumberOfResults <= 0)
+            request.MaximumNumberOfResults = 5;
+        
         // MOCK MODE
         if (_mockEnabled)
         {
@@ -35,17 +46,11 @@ public sealed class CopilotRetrievalService
         }
 
         // LIVE MODE
-        TokenInfo? token;
-        // TODO: This is a bit of a quick hack for local offline dev - if the token refresh fails, or any other part of the auth chain, consider that an auth failure
-        try
-        {
-            token = await _auth.TryGetValidTokenAsync(ct);
-        }
-        catch
-        {
-            token = null;
-        }
+        var token = await _auth.TryGetValidTokenAsync(ct);
 
+        _logger.LogDebug("Using access token ending with ...{End}", 
+            token?.AccessToken.Substring(Math.Max(0, token.AccessToken.Length - 6)));
+        
         if (token is null)
         {
             // Caller will translate this into MCP "auth_required"
@@ -58,17 +63,27 @@ public sealed class CopilotRetrievalService
 
         msg.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token.AccessToken);
 
-        msg.Content = new StringContent(JsonSerializer.Serialize(request), Encoding.UTF8, "application/json");
+        var jsonBody = JsonSerializer.Serialize(request, new JsonSerializerOptions
+        {
+            WriteIndented = false
+        });
+
+        msg.Content = new StringContent(jsonBody, Encoding.UTF8, "application/json");
+
+        _logger.LogInformation("Sending Retrieval POST to Graph with body: {Body}", jsonBody);
 
         var resp = await _httpClient.SendAsync(msg, ct);
         var body = await resp.Content.ReadAsStringAsync(ct);
 
+        _logger.LogInformation("Graph responded {StatusCode}", resp.StatusCode);
+        _logger.LogDebug("Graph raw response: {Raw}", body);
+        
         if (!resp.IsSuccessStatusCode)
         {
             throw new InvalidOperationException(
                 $"Graph returned {(int)resp.StatusCode}: {body}");
         }
-
+        
         var result = JsonSerializer.Deserialize<RetrievalResponse>(body, JsonOptions);
 
         return result ?? new RetrievalResponse();

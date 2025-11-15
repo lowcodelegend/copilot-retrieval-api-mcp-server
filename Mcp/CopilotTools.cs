@@ -17,13 +17,13 @@ public sealed class CopilotTools
     [McpServerTool(Name = "copilotRetrievalSearch")]
     [Description("Search Microsoft 365 via the Copilot Retrieval API. If authentication is required, this tool will return an authRequired flag and an authUrl; in that case, you must tell the user to open the URL in a browser and sign in before calling the tool again.")]
     public async Task<CopilotRetrievalToolResult> CopilotRetrievalSearchAsync(
-        [Description("Natural language search query.")]
+        [Description("Natural language search query. Provide relevant keywords only for best results")]
         string queryString,
 
-        [Description("Data source to search. Defaults to 'sharePoint'.")]
+        [Description("Data source to search. Use sharePoint only.")]
         string? dataSource = "sharePoint",
 
-        [Description("Maximum number of results to request (1-25).")]
+        [Description("Maximum number of results to request (1-10).")]
         int maximumNumberOfResults = 10,
         CancellationToken ct = default)
     {
@@ -73,6 +73,5 @@ public sealed class CopilotTools
                     $"Once the user confirms they’ve completed sign-in, you may call this tool again with the same or updated query."
             };
         }
-
     }
 }

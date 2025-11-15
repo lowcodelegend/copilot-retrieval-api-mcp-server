@@ -10,6 +10,18 @@ Env.Load(File.Exists(".env.local") ? ".env.local" : ".env");
 
 var builder = WebApplication.CreateBuilder(args);
 
+// --- Logging setup ---
+builder.Logging.ClearProviders();
+builder.Logging.AddSimpleConsole(options =>
+{
+    options.TimestampFormat = "HH:mm:ss ";
+    options.SingleLine = true;
+});
+
+builder.Logging.SetMinimumLevel(LogLevel.Debug);
+
+// --- end logging setup ---
+
 // GraphSettings from env vars (same as you already have)
 var graphSettings = new GraphSettings(
     TenantId: GetRequiredEnv("GRAPH_TENANT_ID"),
@@ -37,6 +49,8 @@ builder.Services
     .WithToolsFromAssembly();
 
 var app = builder.Build();
+
+app.Logger.LogInformation("=== Retrieval MCP server starting up ===");
 
 // /login: redirect user to Azure AD sign-in
 app.MapGet("/login", (HttpContext httpContext, GraphAuthService auth) =>
