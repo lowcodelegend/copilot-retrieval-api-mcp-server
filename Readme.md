@@ -17,13 +17,14 @@ Response is a list of chunks (document fragments) of relevant text from OneDrive
 ### Getting Started
 
 1. Do an App Registration in Entra ID (AAD).
-2. Set-up the required Environment Variables.
-3. Host and run on Docker with docker compose.
+2. Set-up the required Environment Variables (docker-compose.yaml, or .env if building locally)
+3. Host and run on Docker with docker compose - copy just the docker-compose.yaml and run:
 
 ```
-cd RetrievalApiMcpServer
 docker compose up -d
 ```
+
+Alternativly, clone the whole repo for dev/test work.
 
 4. Visit the /login endpoint to setup to authenticate to Graph API.
 5. Add the server to your mcp.json or other MCP client:
@@ -40,7 +41,7 @@ docker compose up -d
 
 ### Environment Variables
 
-You will need an App Registration in Entra ID (AAD). Update the values in the .env file
+You will need an App Registration in Entra ID (AAD). Update the values in the .env file or in the docker-compose.yaml depending how you're hosting.
 
 Default Docker ports exposed are:
 HTTP: 5192
