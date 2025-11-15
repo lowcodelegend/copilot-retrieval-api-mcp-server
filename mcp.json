@@ -1,0 +1,10 @@
+{
+  "transport": {
+    "type": "http",
+    "url": "http://localhost:5192/mcp"
+  },
+  "meta": {
+    "name": "Microsoft 365 Copilot Retrieval MCP Server",
+    "description": "Searches your Microsoft tenant's SharePoint/OneDrive content using the Copilot Retrieval API."
+  }
+}
