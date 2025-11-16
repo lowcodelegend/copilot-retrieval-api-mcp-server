@@ -52,12 +52,15 @@ public sealed class CopilotTools
         catch (InvalidOperationException ex) when (ex.Message == "auth_required")
         {
             var baseUrl =
-                Environment.GetEnvironmentVariable("MCP_PUBLIC_BASE_URL")
-                ?? Environment.GetEnvironmentVariable("PUBLIC_BASE_URL")
-                ?? "http://localhost:5192";
+                Environment.GetEnvironmentVariable("PUBLIC_BASE_URL")
+                ?? "Please set the PUBLIC_BASE_URL environment variable";
 
             var authUrl = $"{baseUrl.TrimEnd('/')}/login";
 
+
+            var allowedCopilotUser = Environment.GetEnvironmentVariable("GRAPH_ALLOWED_UPN") ??
+                                     "You must set the GRAPH_ALLOWED_UPN user";
+            
             return new CopilotRetrievalToolResult
             {
                 Status = "auth_required",
@@ -69,6 +72,7 @@ public sealed class CopilotTools
                     $"DO NOT call the 'copilotRetrievalSearch' tool again until the user has authenticated.\n\n" +
                     $"Instead, clearly tell the user something like:\n\n" +
                     $"\"To continue, please open this link in your browser and sign in: {authUrl}\n" +
+                    $"\nThe tool is configured to only allow the {allowedCopilotUser} to login, if you do not have this account, you must ask you administrators\n" +
                     $"After you’ve finished signing in, tell me and I will try the search again.\"\n\n" +
                     $"Once the user confirms they’ve completed sign-in, you may call this tool again with the same or updated query."
             };

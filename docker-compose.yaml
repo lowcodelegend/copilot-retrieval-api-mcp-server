@@ -11,7 +11,8 @@
       GRAPH_TENANT_ID: "REPLACEME"
       GRAPH_CLIENT_ID: "REPLACEME"
       GRAPH_CLIENT_SECRET: "REPLACEME"
-      GRAPH_LOGIN_HINT: "me@myO365Tenant.com"
+      GRAPH_LOGIN_HINT: "copilotServiceAccountUser@myO365Tenant.com"
+      GRAPH_ALLOWED_UPN: "copilotServiceAccountUser@myO365Tenant.com"
 
       # Must match the public URL hosting your MCP server
       GRAPH_REDIRECT_URI: "http://localhost:5192/auth/callback"

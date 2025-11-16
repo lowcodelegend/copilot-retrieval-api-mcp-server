@@ -22,15 +22,16 @@ builder.Logging.SetMinimumLevel(LogLevel.Debug);
 
 // --- end logging setup ---
 
-// GraphSettings from env vars (same as you already have)
 var graphSettings = new GraphSettings(
     TenantId: GetRequiredEnv("GRAPH_TENANT_ID"),
     ClientId: GetRequiredEnv("GRAPH_CLIENT_ID"),
     ClientSecret: GetRequiredEnv("GRAPH_CLIENT_SECRET"),
     LoginHint: Environment.GetEnvironmentVariable("GRAPH_LOGIN_HINT"),
+    AllowedUpn: GetRequiredEnv("GRAPH_ALLOWED_UPN"),
     Scopes: Environment.GetEnvironmentVariable("GRAPH_SCOPES")
              ?? "https://graph.microsoft.com/Files.Read.All https://graph.microsoft.com/Sites.Read.All offline_access"
 );
+
 builder.Services.AddSingleton(graphSettings);
 
 // Token store: optional env override for path
@@ -51,6 +52,7 @@ builder.Services
 var app = builder.Build();
 
 app.Logger.LogInformation("=== Retrieval MCP server starting up ===");
+graphSettings.ValidateOrThrow(app.Logger);
 
 // /login: redirect user to Azure AD sign-in
 app.MapGet("/login", (HttpContext httpContext, GraphAuthService auth) =>
@@ -66,15 +68,16 @@ app.MapGet("/login", (HttpContext httpContext, GraphAuthService auth) =>
     return Results.Redirect(authorizeUrl);
 });
 
-// /auth/callback: Azure AD redirects here with ?code=...
+/// /auth/callback: Azure AD redirects here with ?code=...
 app.MapGet("/auth/callback", async (
     HttpRequest request,
     GraphAuthService auth,
+    GraphSettings settings,
     CancellationToken ct) =>
 {
     var query = request.Query;
 
-    // Handle error cases from Azure AD
+    // Handle error cases from Azure AD (e.g. user cancelled)
     if (!string.IsNullOrEmpty(query["error"]))
     {
         var error = query["error"].ToString();
@@ -116,6 +119,26 @@ app.MapGet("/auth/callback", async (
 
         return Results.Content(html, "text/html");
     }
+    catch (InvalidOperationException ex) when (
+        ex.Message.StartsWith("Authenticated user is not allowed", StringComparison.OrdinalIgnoreCase))
+    {
+        // User logged in with the wrong account (UPN mismatch)
+        var allowedUpn = settings.AllowedUpn ?? "the designated service account";
+
+        var htmlError = $"""
+            <html>
+            <body>
+                <h2>Wrong account used</h2>
+                <p>This MCP server is locked to a specific Microsoft 365 account for security reasons.</p>
+                <p>Please sign out in this browser and sign in again using:</p>
+                <p><code>{System.Net.WebUtility.HtmlEncode(allowedUpn)}</code></p>
+                <p>After signing in with the correct account, return to your MCP client or chat window and try your request again.</p>
+            </body>
+            </html>
+            """;
+
+        return Results.Content(htmlError, "text/html");
+    }
     catch (Exception ex)
     {
         var htmlError = $"""
@@ -130,6 +153,7 @@ app.MapGet("/auth/callback", async (
         return Results.Content(htmlError, "text/html");
     }
 });
+
 
 
 // Health endpoint (same as before, maybe add token file info)

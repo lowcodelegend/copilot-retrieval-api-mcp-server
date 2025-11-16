@@ -51,10 +51,12 @@ No provisions has been added yet to manage the SSL cert.  TODO.
 Typically the service is expected to run behind an SSL offloading Reverse Proxy.
 
 ```
+ASPNETCORE_URLS=http://0.0.0.0:5192                             # generally you won't want to change this - change the public base url and redirect uri
 GRAPH_TENANT_ID=REPLACEME                                       # from Entra ID App Registration
 GRAPH_CLIENT_ID=REPLACEME                                       #
 GRAPH_CLIENT_SECRET=REPLACEME                                   #
-GRAPH_LOGIN_HINT=me@myO365Tenant.com                            # user login hint
+GRAPH_LOGIN_HINT=me@myO365Tenant.com                            # user login hint - suggest the user logs in as
+GRAPH_ALLOWED_UPN=copilotServiceAccountUser@myO365Tenant.com    # *ensure* the user logs in as this user only
 GRAPH_REDIRECT_URI=http://localhost:5192/auth/callback          # e.g. https://myMcpServerUrl/auth/callback, make sure it's registered in App Registration in Entra ID
 MOCK_COPILOT_RETRIEVAL=0                                        # for offline hacking, mock response from graph and bypass auth
 PUBLIC_BASE_URL=https://myMcpServerUrl                          # if using a reverse proxy you can set this

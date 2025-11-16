@@ -1,3 +1,4 @@
+using System.IdentityModel.Tokens.Jwt;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
@@ -9,24 +10,26 @@ public class GraphAuthService
     private readonly HttpClient _httpClient;
     private readonly GraphSettings _settings;
     public readonly ITokenStore _tokenStore;
+    private readonly ILogger<GraphAuthService> _logger;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNameCaseInsensitive = true
     };
 
-    public GraphAuthService(HttpClient httpClient, GraphSettings settings, ITokenStore tokenStore)
+    public GraphAuthService(HttpClient httpClient, GraphSettings settings, ITokenStore tokenStore, ILogger<GraphAuthService> logger)
     {
         _httpClient = httpClient;
         _settings = settings;
         _tokenStore = tokenStore;
+        _logger = logger;
     }
 
     private string AuthorityBase =>
         $"https://login.microsoftonline.com/{_settings.TenantId}/oauth2/v2.0";
 
     /// <summary>
-    /// Builds the Azure AD authorize URL used by /login (we’ll call this later).
+    /// Builds the Azure AD authorize URL used by /login.
     /// </summary>
     public string GetAuthorizeUrl(string redirectUri, string state)
     {
@@ -40,6 +43,7 @@ public class GraphAuthService
             ["state"] = state
         };
 
+        // login_hint is optional UX sugar only; not a security boundary.
         if (!string.IsNullOrWhiteSpace(_settings.LoginHint))
         {
             query["login_hint"] = _settings.LoginHint;
@@ -62,6 +66,13 @@ public class GraphAuthService
         var token = await _tokenStore.LoadAsync(cancellationToken);
         if (token is null)
         {
+            return null;
+        }
+
+        // Enforce that the cached token still belongs to the allowed UPN
+        if (!IsTokenForAllowedUser(token.AccessToken))
+        {
+            // Optionally clear cache here if you add a ClearAsync on ITokenStore
             return null;
         }
 
@@ -88,7 +99,7 @@ public class GraphAuthService
 
     /// <summary>
     /// Exchange an authorization code for tokens and save them.
-    /// Used later by /auth/callback.
+    /// Used by /auth/callback.
     /// </summary>
     public async Task<TokenInfo> ExchangeCodeForTokenAsync(
         string code,
@@ -118,6 +129,17 @@ public class GraphAuthService
                            ?? throw new InvalidOperationException("Failed to deserialize token response.");
 
         var tokenInfo = tokenResponse.ToTokenInfo();
+
+        // Enforce that the user who just signed in is the one we expect
+        _logger.LogInformation("Validating allowed graph user");
+        if (!IsTokenForAllowedUser(tokenInfo.AccessToken))
+        {
+            throw new InvalidOperationException(
+                "Authenticated user is not allowed. " +
+                "Please sign in using the designated account for this MCP server. As per GRAPH_ALLOWED_UPN");
+        }
+        _logger.LogInformation("Graph user matches, ok.");
+
         await _tokenStore.SaveAsync(tokenInfo, cancellationToken);
         return tokenInfo;
     }
@@ -140,13 +162,58 @@ public class GraphAuthService
 
         if (!response.IsSuccessStatusCode)
         {
-            // We deliberately return null instead of throwing – caller will treat this
-            // as "auth required" and trigger the browser flow.
+            // Caller will treat this as "auth required"
             return null;
         }
 
         var tokenResponse = JsonSerializer.Deserialize<TokenResponse>(body, JsonOptions);
-        return tokenResponse?.ToTokenInfo();
+        if (tokenResponse is null)
+        {
+            return null;
+        }
+
+        var tokenInfo = tokenResponse.ToTokenInfo();
+
+        // 👇 Also enforce identity on refresh
+        if (!IsTokenForAllowedUser(tokenInfo.AccessToken))
+        {
+            // Do not accept a refreshed token for the wrong user
+            return null;
+        }
+
+        return tokenInfo;
+    }
+
+    /// <summary>
+    /// Checks the access token's UPN/username against GRAPH_ALLOWED_UPN (if set).
+    /// </summary>
+    private bool IsTokenForAllowedUser(string accessToken)
+    {
+        var handler = new JwtSecurityTokenHandler();
+        JwtSecurityToken jwt;
+
+        try
+        {
+            jwt = handler.ReadJwtToken(accessToken);
+        }
+        catch
+        {
+            _logger.LogError("Failed to crack JWT to check graph user.");
+            return false;
+        }
+
+        // Try common claim types: upn, preferred_username, email
+        var upn =
+            jwt.Claims.FirstOrDefault(c => c.Type == "upn")?.Value ??
+            jwt.Claims.FirstOrDefault(c => c.Type == "preferred_username")?.Value ??
+            jwt.Claims.FirstOrDefault(c => c.Type == "email")?.Value;
+
+        if (string.IsNullOrWhiteSpace(upn))
+        {
+            return false;
+        }
+
+        return string.Equals(upn, _settings.AllowedUpn, StringComparison.OrdinalIgnoreCase);
     }
 
     private sealed class TokenResponse
